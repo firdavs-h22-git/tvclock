@@ -7,16 +7,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Zip bo'lsa ochish
+        run: |
+          for z in $(find . -maxdepth 2 -name '*.zip' -not -path './.git/*'); do
+            echo "Ochilmoqda: $z"
+            unzip -o -q "$z" -d "$(dirname "$z")/unzipped_$(basename "$z" .zip)"
+          done
+
+      - name: Durak loyihasi papkasini topish
+        id: p
+        run: |
+          f=$(grep -rl --include=settings.gradle.kts 'rootProject.name = "Durak"' . | head -n1)
+          if [ -z "$f" ]; then
+            echo "Durak loyihasi topilmadi: settings.gradle.kts fayli yo'q"
+            ls -R | head -50
+            exit 1
+          fi
+          echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
+
       - name: Build debug APK
+        working-directory: ${{ steps.p.outputs.dir }}
         run: gradle assembleDebug --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
           name: durak-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/*.apk
